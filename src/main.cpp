@@ -35,9 +35,9 @@
 // remote codes to send
 #define LAMP_OFF  0x00F740BFUL
 #define LAMP_ON   0x00F7C03FUL
-// lamp will be on from 7:00AM - 5:00PM
-#define ON_HR     7
-#define OFF_HR    17
+// lamp will be on from 8:00AM - 4:00PM
+#define ON_HR     8
+#define OFF_HR    16
 #define IR_PIN    15
 
 enum meridiem {am, pm};
