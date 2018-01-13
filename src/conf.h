@@ -26,4 +26,12 @@
 #define IRALT_WIFI_PSK   "<PASSWORD>"
 #define IRALT_NTP_SERVER "<NTP.SERVER.HOST>"
 
+#ifndef IRALT_MODE_IR
+#ifndef IRALT_MODE_RELAY
+// default to IRALT_MODE_IR if neither is defined
+#define IRALT_MODE_IR
+//#define IRALT_MODE_RELAY
+#endif /* IRALT_MODE_RELAY */
+#endif /* IRALT_MODE_IR */
+
 #endif /* _IR_AQUARIUM_TIMER_CONF_H_ */

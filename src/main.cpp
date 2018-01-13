@@ -18,27 +18,35 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+ 
+#include "conf.h"
 
 #include <Arduino.h>
 #include <NTPClient.h>
 #include <ESP8266WiFi.h>
 #include <WiFiUdp.h>
 #include <IRremoteESP8266.h>
-#include <IRsend.h>
 #include <FeatherOLED_Aquarium.h>
 #include <Atduino.h>
 #include <TimeLib.h>
+
+#ifdef IRALT_MODE_IR
+#include <IRsend.h>
+#endif /* IRALT_MODE_IR */
+
 #include "util.h"
 #include "tzoffsets.h"
-#include "conf.h"
 
+
+#ifdef IRALT_MODE_IR
 // remote codes to send
 #define LAMP_OFF  0x00F740BFUL
 #define LAMP_ON   0x00F7C03FUL
+#endif /* IRALT_MODE_IR */
 // lamp will be on from 8:00AM - 4:00PM
 #define ON_HR     8
 #define OFF_HR    16
-#define IR_PIN    15
+#define CONTROL_PIN    15
 
 enum meridiem {am, pm};
 
@@ -51,7 +59,11 @@ WiFiUDP ntpUDP;
 Atduino atd = Atduino();
 NTPClient ntpc(ntpUDP, IRALT_NTP_SERVER, PST);
 FeatherOLED_Aquarium oled = FeatherOLED_Aquarium();
-IRsend irsend(IR_PIN);
+
+#ifdef IRALT_MODE_IR
+IRsend irsend(CONTROL_PIN);
+#endif /* IRALT_MODE_IR */
+
 
 
 String aqua_formatted_time(unsigned long epochtime) {
@@ -105,7 +117,13 @@ void send_on(struct atduino_timespec_t &scheduled) {
     sched.Year = scheduled.year - 1970;
     unsigned long tomorrow = nextMidnight(makeTime(sched));
     oled.setIcon(daytime);
+
+#ifdef IRALT_MODE_IR
     irsend.sendNEC(LAMP_ON, 32);
+#endif /* IRALT_MODE_IR */
+#ifdef IRALT_MODE_RELAY
+    digitalWrite(CONTROL_PIN, HIGH);
+#endif /* IRALT_MODE_RELAY */
 
     // schedule next run
     atd.add_task(year(tomorrow), month(tomorrow), day(tomorrow), ON_HR, 0, send_on);
@@ -122,7 +140,13 @@ void send_off(struct atduino_timespec_t &scheduled) {
     sched.Year = scheduled.year - 1970;
     unsigned long tomorrow = nextMidnight(makeTime(sched));
     oled.setIcon(nighttime);
+
+#ifdef IRALT_MODE_IR
     irsend.sendNEC(LAMP_OFF, 32);
+#endif /* IRALT_MODE_IR */
+#ifdef IRALT_MODE_RELAY
+    digitalWrite(CONTROL_PIN, LOW);
+#endif /* IRALT_MODE_RELAY */
 
     // schedule next run
     atd.add_task(year(tomorrow), month(tomorrow), day(tomorrow), OFF_HR, 0, send_off);
@@ -136,7 +160,12 @@ void setup() {
 
     // put your setup code here, to run once:
     Serial.begin(115200);
+#ifdef IRALT_MODE_IR
     irsend.begin();
+#endif /* IRALT_MODE_IR */
+#ifdef IRALT_MODE_RELAY
+    pinMode(CONTROL_PIN, OUTPUT);
+#endif /* IRALT_MODE_RELAY */
 
     // screen
     oled.init();

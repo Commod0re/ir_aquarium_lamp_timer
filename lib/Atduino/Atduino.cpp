@@ -56,7 +56,7 @@ void Atduino::pop_task(uint8_t idx) {
  */
 void Atduino::shift_back(uint8_t idx) {
     if (_qlen > 0) {
-        for (uint8_t n = _qlen + 1, i = _qlen; i >= idx; --n, --i) {
+        for (int16_t n = _qlen + 1, i = _qlen; i >= idx; --n, --i) {
             _queue[n].timespec.minute = _queue[i].timespec.minute;
             _queue[n].timespec.hour = _queue[i].timespec.hour;
             _queue[n].timespec.day = _queue[i].timespec.day;
