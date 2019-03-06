@@ -36,7 +36,11 @@ struct atduino_timespec_t {
 
     // operator overloads, so we can compare these directly
     inline bool operator==(struct atduino_timespec_t &other) {
-        return year == other.year && month == other.month && day == other.day && hour == other.hour && minute == other.minute;
+        return (this->year == other.year
+                && this->month == other.month
+                && this->day == other.day
+                && this->hour == other.hour
+                && this->minute == other.minute);
     }
 
     // < and <=, for ordering
