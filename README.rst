@@ -11,6 +11,7 @@ Software
 
 * `PlatformIO <http://platformio.org/>`_
 * Libraries:
+
   * Time
   * NTPClient
   * IRremoteESP8266
