@@ -18,17 +18,17 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
- 
+
 #include "conf.h"
 
 #include <Arduino.h>
 #include <NTPClient.h>
+#include <TimeLib.h>
 #include <ESP8266WiFi.h>
 #include <WiFiUdp.h>
 #include <IRremoteESP8266.h>
 #include <FeatherOLED_Aquarium.h>
 #include <Atduino.h>
-#include <TimeLib.h>
 
 #ifdef IRALT_MODE_IR
 #include <IRsend.h>
@@ -65,9 +65,11 @@ IRsend irsend(CONTROL_PIN);
 #endif /* IRALT_MODE_IR */
 
 
-
+/*
+ * aqua_formatted_time
+ * return formatted time
+ */
 String aqua_formatted_time(unsigned long epochtime) {
-    meridiem m = am;
     int hrs = hourFormat12(epochtime);
     int min = minute(epochtime);
     String hoursStr, minutesStr, meridiemStr;
@@ -80,10 +82,13 @@ String aqua_formatted_time(unsigned long epochtime) {
 }
 
 
-
+/*
+ * set_st
+ * set tz offset to standard time
+ */
 void set_st(struct atduino_timespec_t &scheduled) {
     Serial.println("set_pst");
-    unsigned long epochtime = ntpc.getEpochTime();
+    time_t epochtime = now();
     uint16_t yr = year(epochtime) + 1;
 
     ntpc.setTimeOffset(PST);
@@ -94,22 +99,30 @@ void set_st(struct atduino_timespec_t &scheduled) {
 }
 
 
+/*
+ * set_dt
+ * set tz offset to daylight savings time
+ */
 void set_dt(struct atduino_timespec_t &scheduled) {
     Serial.println("set_pdt");
-    unsigned long epochtime = ntpc.getEpochTime();
+    time_t epochtime = now();
     uint16_t yr = year(epochtime) + 1;
 
     ntpc.setTimeOffset(PDT);
     ntpc.update();
 
     // schedule next run
-    atd.add_task(yr, 11, get_dst_end(yr), 0, 0, set_dt);
+    atd.add_task(yr, 3, get_dst_start(yr), 0, 0, set_dt);
 }
 
 
+/*
+ * send_on
+ * turn the aquarium lamp on
+ */
 void send_on(struct atduino_timespec_t &scheduled) {
-    Serial.println("send_on");
     tmElements_t sched;
+    Serial.println("send_on");
     sched.Minute = scheduled.minute;
     sched.Hour = scheduled.hour;
     sched.Day = scheduled.day;
@@ -130,9 +143,13 @@ void send_on(struct atduino_timespec_t &scheduled) {
 }
 
 
+/*
+ * send_off
+ * turn the aquarium lamp off
+ */
 void send_off(struct atduino_timespec_t &scheduled) {
-    Serial.println("send_off");
     tmElements_t sched;
+    Serial.println("send_off");
     sched.Minute = scheduled.minute;
     sched.Hour = scheduled.hour;
     sched.Day = scheduled.day;
@@ -152,27 +169,48 @@ void send_off(struct atduino_timespec_t &scheduled) {
     atd.add_task(year(tomorrow), month(tomorrow), day(tomorrow), OFF_HR, 0, send_off);
 }
 
+/*
+ * get_ntp_time
+ */
+time_t get_ntp_time() {
+  if (!ntpc.update()) {
+    // ntpc update failed
+    return 0;
+  }
+  return ntpc.getEpochTime();
+}
 
+/*
+ * setup
+ */
 void setup() {
-    unsigned long epochtime;
+    time_t epochtime;
     uint16_t yr;
     uint8_t mo, dy;
 
     // put your setup code here, to run once:
     Serial.begin(115200);
+    Serial.println("");
 #ifdef IRALT_MODE_IR
+    Serial.println("IR mode");
     irsend.begin();
 #endif /* IRALT_MODE_IR */
 #ifdef IRALT_MODE_RELAY
+    Serial.println("relay mode");
     pinMode(CONTROL_PIN, OUTPUT);
 #endif /* IRALT_MODE_RELAY */
 
     // screen
+    Serial.println("initializing screen");
+    // add a short delay before oled.init to ensure the screen is ready to init
+    delay(100);
     oled.init();
+    // oled.clearDisplay();
     oled.setBatteryVisible(false);
     oled.setBatteryIcon(false);
     oled.setRSSIVisible(true);
     oled.setConnected(false);
+    oled.refreshIcons();
 
     // connect to wifi
     WiFi.mode(WIFI_STA);
@@ -183,12 +221,22 @@ void setup() {
     oled.setConnected(true);
     oled.setIPAddress(WiFi.localIP());
     oled.setRSSI(WiFi.RSSI());
+    oled.refreshIcons();
 
     // connect to NTP
     ntpc.begin();
-    ntpc.update();
+    Serial.println("Waiting for time sync...");
+    setSyncProvider(get_ntp_time);
 
-    epochtime = ntpc.getEpochTime();
+    // wait for ntp to finish syncing
+    while (timeStatus() == timeNotSet) {
+        delay(500);
+        // call now() so NTPClient actually tries to reconnect
+        now();
+    }
+
+    ntpc.update();
+    epochtime = now();
     yr = year(epochtime);
     mo = month(epochtime);
     dy = day(epochtime);
@@ -204,9 +252,12 @@ void setup() {
 }
 
 
+/*
+ * loop
+ */
 void loop() {
     struct atduino_timespec_t curtime;
-    unsigned long ts;
+    time_t ts;
 
     // clear the display
     oled.clearDisplay();
@@ -221,11 +272,11 @@ void loop() {
     curtime.day = day(ts);
     curtime.month = month(ts);
     curtime.year = year(ts);
+
     atd.check(curtime);
 
     // print time to the message area
     oled.setCursor(10, 12);
-    // oled.println(timeClient.getFormattedTime());
     oled.println(aqua_formatted_time(ts));
 
     // update status values
