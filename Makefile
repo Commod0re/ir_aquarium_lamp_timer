@@ -12,5 +12,5 @@ mode-relay: IRALT_MODE = IRALT_MODE_RELAY
 mode-relay: upload
 
 upload:
-	env LATFORMIO_BUILD_FLAGS=-D$(IRALT_MODE) \
+	env PLATFORMIO_BUILD_FLAGS=-D$(IRALT_MODE) \
 		pio run -t upload
