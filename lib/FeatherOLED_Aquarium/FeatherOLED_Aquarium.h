@@ -43,7 +43,7 @@ protected:
 
 public:
     // Constructor
-    FeatherOLED_Aquarium(int reset=-1): Adafruit_FeatherOLED_WiFi(reset) {
+    FeatherOLED_Aquarium(TwoWire *wire=&Wire, int reset=-1): Adafruit_FeatherOLED_WiFi(wire, reset) {
         _icon = unknown;
         _batteryVisible = false;
     }
